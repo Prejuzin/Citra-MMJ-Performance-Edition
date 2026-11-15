@@ -1,0 +1,40 @@
+
+name: Citra MMJ - Diagnostico
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Baixar codigo e submodulos
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Verificar repositorio
+        run: |
+          echo "=== Projeto ==="
+          git log -1 --oneline
+
+          echo "=== Submodulos ==="
+          git submodule status
+
+          echo "=== Arquivos de compilacao ==="
+          find . -maxdepth 4 \
+            \( -name 'build.gradle' \
+            -o -name 'build.gradle.kts' \
+            -o -name 'settings.gradle' \
+            -o -name 'gradlew' \
+            -o -name 'CMakeLists.txt' \) \
+            -print | head -100
+
+          echo "=== Diretorios principais ==="
+          ls -la
+          
