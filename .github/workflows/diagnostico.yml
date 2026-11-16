@@ -12,29 +12,33 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Baixar codigo e submodulos
+      - name: Baixar codigo principal
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          fetch-depth: 0
+          submodules: false
+          fetch-depth: 1
 
-      - name: Verificar repositorio
+      - name: Examinar projeto
         run: |
-          echo "=== Projeto ==="
+          echo "=== PROJETO ==="
           git log -1 --oneline
 
-          echo "=== Submodulos ==="
-          git submodule status
+          echo "=== SUBMODULOS CONFIGURADOS ==="
+          cat .gitmodules || true
 
-          echo "=== Arquivos de compilacao ==="
+          echo "=== ARQUIVOS DE COMPILACAO ==="
           find . -maxdepth 4 \
-            \( -name 'build.gradle' \
-            -o -name 'build.gradle.kts' \
-            -o -name 'settings.gradle' \
-            -o -name 'gradlew' \
-            -o -name 'CMakeLists.txt' \) \
+            \( -name 'CMakeLists.txt' \
+            -o -name 'Android.mk' \
+            -o -name 'Application.mk' \
+            -o -name 'build.gradle' \
+            -o -name 'gradlew' \) \
             -print | head -100
 
-          echo "=== Diretorios principais ==="
+          echo "=== DIRETORIOS ==="
           ls -la
-          
+
+          echo "=== ESTRUTURA EXTERNALS ==="
+          ls -la externals || true
+
+          echo "=== DIAGNOSTICO CONCLUIDO ==="
