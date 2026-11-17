@@ -1,44 +1,102 @@
-
-name: Citra MMJ - Diagnostico
+name: Citra MMJ - Diagnóstico Completo
 
 on:
   workflow_dispatch:
+    inputs:
+      check_submodules:
+        description: 'Verificar submódulos do Git'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: read
 
 jobs:
   diagnose:
+    name: Diagnóstico do Projeto
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
 
     steps:
-      - name: Baixar codigo principal
+      - name: 📥 Baixar código-fonte
         uses: actions/checkout@v4
         with:
-          submodules: false
+          submodules: ${{ inputs.check_submodules && 'recursive' || 'false' }}
           fetch-depth: 1
 
-      - name: Examinar projeto
+      - name: 🔍 Informações do Git
         run: |
-          echo "=== PROJETO ==="
-          git log -1 --oneline
+          echo "=== ÚLTIMO COMMIT ==="
+          git log -1 --pretty=format:'%h - %s (%cr) — %an'
+          echo -e "\n=== RAMO ATUAL ==="
+          git branch --show-current
 
-          echo "=== SUBMODULOS CONFIGURADOS ==="
-          cat .gitmodules || true
+      - name: 📁 Estrutura do Projeto
+        run: |
+          echo "=== ARQUIVOS NA RAIZ ==="
+          ls -lah
 
-          echo "=== ARQUIVOS DE COMPILACAO ==="
-          find . -maxdepth 4 \
-            \( -name 'CMakeLists.txt' \
-            -o -name 'Android.mk' \
-            -o -name 'Application.mk' \
-            -o -name 'build.gradle' \
-            -o -name 'gradlew' \) \
-            -print | head -100
+          echo -e "\n=== SUBMÓDULOS CONFIGURADOS ==="
+          if [ -f .gitmodules ]; then
+            cat .gitmodules
+          else
+            echo "Nenhum arquivo .gitmodules encontrado"
+          fi
 
-          echo "=== DIRETORIOS ==="
-          ls -la
+          echo -e "\n=== PASTAS PRINCIPAIS ==="
+          find . -maxdepth 2 -type d -not -path '*/\.*' | sort
 
-          echo "=== ESTRUTURA EXTERNALS ==="
-          ls -la externals || true
+      - name: 🏗️ Arquivos de Compilação
+        run: |
+          echo "=== ARQUIVOS DE BUILD ENCONTRADOS ==="
+          BUILD_FILES=$(find . -maxdepth 4 \( \
+            -name 'CMakeLists.txt' -o \
+            -name 'Android.mk' -o \
+            -name 'Application.mk' -o \
+            -name 'build.gradle' -o \
+            -name 'build.gradle.kts' -o \
+            -name 'gradlew' -o \
+            -name 'CMakePresets.json' \) -not -path '*/build/*' | sort)
+          
+          if [ -n "$BUILD_FILES" ]; then
+            echo "$BUILD_FILES"
+            echo -e "\n✅ Total: $(echo "$BUILD_FILES" | wc -l) arquivos"
+          else
+            echo "⚠️ Nenhum arquivo de build encontrado na raiz"
+          fi
 
-          echo "=== DIAGNOSTICO CONCLUIDO ==="
+      - name: 📲 Pasta Externals
+        run: |
+          echo "=== ESTRUTURA DEPENDÊNCIAS ==="
+          if [ -d "externals" ]; then
+            ls -lah externals/
+            echo -e "\nSubpastas:"
+            find externals -maxdepth 2 -type d | head -50
+          else
+            echo "Pasta externals não existe"
+          fi
+
+      - name: 📊 Contagem de Arquivos Fonte
+        run: |
+          echo "=== CONTAGEM DE ARQUIVOS ==="
+          echo "Arquivos C++ (.cpp):   $(find . -name '*.cpp' -not -path '*/.*' -not -path '*/build/*' | wc -l)"
+          echo "Arquivos C++ (.cxx):   $(find . -name '*.cxx' -not -path '*/.*' -not -path '*/build/*' | wc -l)"
+          echo "Headers (.h / .hpp):   $(find . -name '*.h' -o -name '*.hpp' -not -path '*/.*' -not -path '*/build/*' | wc -l)"
+          echo "Arquivos C (.c):       $(find . -name '*.c' -not -path '*/.*' -not -path '*/build/*' | wc -l)"
+          echo "Arquivos Java/Kotlin:  $(find . -name '*.java' -o -name '*.kt' -not -path '*/.*' -not -path '*/build/*' | wc -l)"
+
+      - name: 🔧 Versões de Ferramentas
+        run: |
+          echo "=== AMBIENTE DE COMPILAÇÃO ==="
+          cmake --version | head -1
+          ndk-build --version 2>/dev/null || echo "ndk-build não no PATH"
+          java -version 2>&1 | head -1
+          gcc --version | head -1
+          echo "Sistema: $(lsb_release -d -s)"
+
+      - name: ✅ Diagnóstico Concluído
+        run: |
+          echo "======================================"
+          echo "  DIAGNÓSTICO FINALIZADO COM SUCESSO  "
+          echo "======================================"
